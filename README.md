@@ -269,3 +269,77 @@ que armazena todo estado dos recursos e faz versionamento dos recursos.</p>
 * Teste a aplicação acessando o console da AWS e vá para o serviço EC2.
 * Selecione a instância criada e copie o IP público.
 * Acesse o navegador e cole o IP público da instância.
+
+## Configurando KeyPair para acesso SSH (ssh-keygen)
+
+* Gerar uma chave pública e privada
+
+```shell
+ssh-keygen
+```
+* Configurar o arquivo main.tf dentro da pasta infra
+* Crie um novo recurso key_pair, apontando para para a chave pública
+
+````tf
+resource "aws_key_pair" "keypair" {
+  key_name = "terraform-keypair"
+  public_key = file("~/.ssh/id_rsa.pub")
+}
+
+resource "aws_instance" "servidor" {
+  ami = "ami-00beae93a2d981137"
+  instance_type = "t2.nano"
+  user_data = file("user_data.sh")
+  key_name = aws_key_pair.keypair.key_name
+  vpc_security_group_ids = [aws_security_group.securitygroup.id]
+}
+````
+
+* Libere o acesso a porta SSH
+* Dentro de resource security group, crie um novo ingress
+
+````tf
+  ingress {
+  from_port   = 22
+  to_port     = 22
+  protocol    = "tcp"
+  cidr_blocks = ["0.0.0.0/0"]
+}
+````
+
+* Depois aplique as alterações, dentro da pasta infra
+
+````shell
+terraform apply
+````
+
+<p>O arquivo terraform.tfstate.backup, tende a ser o arquivo anterior do terraform.tfstate.</p>
+<p>O Terraform derruba a máquina anterior e sobe uma nova máquina com as alterações.</p>
+<p>No console da AWS é possível ver o key pair e security group criados na aba de <b>network e security</b> do EC2</p>
+
+## Acesso remoto via SSH
+
+````shell
+ssh ec2-user@<ip-publico>.compute-1.amazonaws.com
+````
+
+* Comando Docker dentro da instância EC2 para confirmar o acesso remoto
+
+````shell
+docker ps
+docker logs <id-container>
+````
+
+* Para sair do acesso remoto
+
+````shell
+exit
+````
+
+## Realizar o destroy (destruir) da infra na AWS
+
+* Dentro da pasta infra
+
+````shell
+terraform destroy
+````
